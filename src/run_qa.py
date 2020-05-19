@@ -128,7 +128,7 @@ def train(args, train_dataset, model):
                                                                     int(args.num_train_epochs))
             logger.info(model_checkpoint)
             output_model_file = os.path.join(args.output_dir, model_checkpoint)
-            if args.n_gpu > 1 or args.local_rank is not -1:
+            if args.n_gpu > 1 or args.local_rank != -1:
                 logger.info("** ** * Saving file * ** **(module)")
                 torch.save(model.module.state_dict(), output_model_file)
             else:
@@ -142,8 +142,8 @@ def load_and_cache_examples(args, tokenizer):
     # Load data features from cache or dataset file
     input_file = args.train_file
     cached_features_file = os.path.join(os.path.dirname(input_file), '_cached_{}_{}_{}'.format('train',
-                                                                                              str(args.max_seq_length),
-                                                                                              args.doc_stride))
+                                                                                               str(args.max_seq_length),
+                                                                                               args.doc_stride))
     if os.path.exists(cached_features_file):
         logger.info("Loading features from cached file %s", cached_features_file)
         features = torch.load(cached_features_file)

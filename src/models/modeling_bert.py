@@ -225,6 +225,11 @@ class Config(object):
     def to_json_string(self):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
+    def to_json_file(self, json_file_path):
+        """ Save this instance to a json file."""
+        with open(json_file_path, "w", encoding='utf-8') as writer:
+            writer.write(self.to_json_string())
+
 
 class Embeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings.
