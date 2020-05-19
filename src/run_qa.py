@@ -5,7 +5,6 @@ import logging
 import os
 import random
 import sys
-from io import open
 
 import numpy as np
 import torch
@@ -24,15 +23,152 @@ if sys.version_info[0] == 2:
 else:
     import pickle
 
+logger = logging.getLogger(__name__)
+
+
+def set_seed(args):
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if args.n_gpu > 0:
+        torch.cuda.manual_seed_all(args.seed)
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt='%m/%d/%Y %H:%M:%S',
-                    level=logging.INFO)
-logger = logging.getLogger(__name__)
+def train(args, train_dataset, model):
+    """ Train the model """
+    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
+    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+
+    t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+
+    # Prepare optimizer and schedule (linear warmup and decay)
+    no_decay = ['bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
+        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=t_total*0.1, t_total=t_total)
+    if args.fp16:
+        try:
+            from apex import amp
+        except ImportError:
+            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+        if args.fp16_opt_level == "O2":
+            keep_batchnorm_fp32 = False
+        else:
+            keep_batchnorm_fp32 = True
+        model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level, keep_batchnorm_fp32=keep_batchnorm_fp32)
+
+    # multi-gpu training (should be after apex fp16 initialization)
+    if args.n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+
+    # Distributed training (should be after apex fp16 initialization)
+    if args.local_rank != -1:
+        model = DDP(model, message_size=250000000, gradient_predivide_factor=torch.distributed.get_world_size())
+
+    # Train!
+    logger.info("***** Running training *****")
+    logger.info("  Num examples = %d", len(train_dataset))
+    logger.info("  Num Epochs = %d", args.num_train_epochs)
+    logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
+    logger.info("  Total train batch size (w. parallel, distributed & accumulation) = %d",
+                args.train_batch_size * args.gradient_accumulation_steps * (torch.distributed.get_world_size() if args.local_rank != -1 else 1))
+    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
+    logger.info("  Total optimization steps = %d", t_total)
+
+    global_step = 0
+    epochs = 0
+    model.zero_grad()
+    model.train()
+    train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0])
+    set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
+    for _ in train_iterator:
+        epoch_iterator = tqdm(train_dataloader, desc="Train(XX Epoch) Step(X/X) (loss=X.X)", disable=args.local_rank not in [-1, 0])
+        for step, batch in enumerate(epoch_iterator):
+            batch = tuple(t.to(args.device) for t in batch)  # multi-gpu does scattering it-self
+            input_ids, input_mask, segment_ids, start_positions, end_positions = batch
+            outputs = model(input_ids, segment_ids, input_mask, start_positions, end_positions)
+            loss = outputs  # model outputs are always tuple in transformers (see doc)
+
+            if args.n_gpu > 1:
+                loss = loss.mean() # mean() to average on multi-gpu parallel (not distributed) training
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+
+            if args.fp16:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
+
+            if (step + 1) % args.gradient_accumulation_steps == 0:
+                if args.fp16:
+                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                else:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+
+                scheduler.step()  # Update learning rate schedule\
+                optimizer.step()
+                optimizer.zero_grad()
+                global_step += 1
+                epoch_iterator.set_description(
+                    "Train(%d Epoch) Step(%d / %d) (loss=%5.5f)" % (_, global_step, t_total, loss.item()))
+
+        if args.local_rank in [-1, 0]:
+            model_checkpoint = 'korquad_{0}_{1}_{2}_{3}.bin'.format(args.learning_rate,
+                                                                    args.train_batch_size,
+                                                                    epochs,
+                                                                    int(args.num_train_epochs))
+            logger.info(model_checkpoint)
+            output_model_file = os.path.join(args.output_dir, model_checkpoint)
+            if args.n_gpu > 1 or args.local_rank is not -1:
+                logger.info("** ** * Saving file * ** **(module)")
+                torch.save(model.module.state_dict(), output_model_file)
+            else:
+                logger.info("** ** * Saving file * ** **")
+                torch.save(model.state_dict(), output_model_file)
+        epochs += 1
+    logger.info("Training End!!!")
+
+
+def load_and_cache_examples(args, tokenizer):
+    # Load data features from cache or dataset file
+    input_file = args.train_file
+    cached_features_file = os.path.join(os.path.dirname(input_file), '_cached_{}_{}_{}'.format('train',
+                                                                                              str(args.max_seq_length),
+                                                                                              args.doc_stride))
+    if os.path.exists(cached_features_file):
+        logger.info("Loading features from cached file %s", cached_features_file)
+        features = torch.load(cached_features_file)
+    else:
+        logger.info("Creating features from dataset file at %s", input_file)
+        examples = read_squad_examples(input_file=args.train_file, is_training=True, version_2_with_negative=False)
+        features = convert_examples_to_features(examples=examples,
+                                                tokenizer=tokenizer,
+                                                max_seq_length=args.max_seq_length,
+                                                doc_stride=args.doc_stride,
+                                                max_query_length=args.max_query_length,
+                                                is_training=True)
+
+        if args.local_rank in [-1, 0]:
+            logger.info("Saving features into cached file %s", cached_features_file)
+            torch.save(features, cached_features_file, pickle_protocol=pickle.HIGHEST_PROTOCOL)
+
+    # Convert to Tensors and build dataset
+    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+    all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+    all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_start_positions, all_end_positions)
+    return dataset
 
 
 def main():
@@ -57,7 +193,7 @@ def main():
     parser.add_argument("--max_query_length", default=64, type=int,
                         help="The maximum number of tokens for the question. Questions longer than this will "
                              "be truncated to this length.")
-    parser.add_argument("--train_batch_size", default=16, type=int, help="Total batch size for training.")
+    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Total batch size for training.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--num_train_epochs", default=4.0, type=float,
                         help="Total number of training epochs to perform.")
@@ -101,22 +237,23 @@ def main():
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
+        args.n_gpu = torch.cuda.device_count()
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
         torch.distributed.init_process_group(backend='nccl')
-        n_gpu = 1
+        args.n_gpu = 1
     args.device = device
 
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    if n_gpu > 0:
-        torch.cuda.manual_seed_all(args.seed)
+    # Setup logging
+    logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                        datefmt = '%m/%d/%Y %H:%M:%S',
+                        level = logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
+    logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
+                   args.local_rank, device, args.n_gpu, bool(args.local_rank != -1), args.fp16)
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    # Set seed
+    set_seed(args)
 
     tokenizer = BertTokenizer('data/large_v1_32k_vocab.txt',
                               max_len=args.max_seq_length,
@@ -129,120 +266,11 @@ def main():
     logger.info("Total Parameter: %d" % num_params)
     model.to(device)
 
-    cached_train_features_file = args.train_file + '_{0}_{1}_{2}'.format(str(args.max_seq_length), str(args.doc_stride),
-                                                                         str(args.max_query_length))
-    train_examples = read_squad_examples(input_file=args.train_file, is_training=True, version_2_with_negative=False)
-    try:
-        with open(cached_train_features_file, "rb") as reader:
-            train_features = pickle.load(reader)
-    except:
-        train_features = convert_examples_to_features(
-            examples=train_examples,
-            tokenizer=tokenizer,
-            max_seq_length=args.max_seq_length,
-            doc_stride=args.doc_stride,
-            max_query_length=args.max_query_length,
-            is_training=True)
-        logger.info("  Saving train features into cached file %s", cached_train_features_file)
-        with open(cached_train_features_file, "wb") as writer:
-            pickle.dump(train_features, writer)
+    logger.info("Training hyper-parameters %s", args)
 
-    num_train_optimization_steps = int(len(train_features) / args.train_batch_size) * args.num_train_epochs
-
-    # Prepare optimizer
-    param_optimizer = list(model.named_parameters())
-    no_decay = ['bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-         'weight_decay': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
-
-    optimizer = AdamW(optimizer_grouped_parameters,
-                      lr=args.learning_rate,
-                      eps=args.adam_epsilon)
-    scheduler = WarmupLinearSchedule(optimizer,
-                                     warmup_steps=num_train_optimization_steps*0.1,
-                                     t_total=num_train_optimization_steps)
-
-    if args.fp16:
-        try:
-            from apex import amp
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-        model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
-    # multi-gpu training (should be after apex fp16 initialization)
-    if args.n_gpu > 1:
-        model = torch.nn.DataParallel(model)
-
-    # Distributed training (should be after apex fp16 initialization)
-    if args.local_rank != -1:
-        model = DDP(model, message_size=250000000, gradient_predivide_factor=torch.distributed.get_world_size())
-
-    logger.info("***** Running training *****")
-    logger.info("  Num orig examples = %d", len(train_examples))
-    logger.info("  Num split examples = %d", len(train_features))
-    logger.info("  Batch size = %d", args.train_batch_size)
-    logger.info("  Num steps = %d", num_train_optimization_steps)
-    num_train_step = num_train_optimization_steps
-
-    all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
-    all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
-    all_start_positions = torch.tensor([f.start_position for f in train_features], dtype=torch.long)
-    all_end_positions = torch.tensor([f.end_position for f in train_features], dtype=torch.long)
-    train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
-                               all_start_positions, all_end_positions)
-
-    train_sampler = RandomSampler(train_data) if args.local_rank == -1 else DistributedSampler(train_data)
-    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
-
-    model.train()
-    global_step = 0
-    epoch = 0
-    for _ in trange(int(args.num_train_epochs), desc="Epoch"):
-        iter_bar = tqdm(train_dataloader, desc="Train(XX Epoch) Step(XX/XX) (Mean loss=X.X) (loss=X.X)")
-        tr_step, tr_loss, mean_loss = 0, 0., 0.
-        for step, batch in enumerate(iter_bar):
-            if n_gpu == 1:
-                batch = tuple(t.to(device) for t in batch)  # multi-gpu does scattering it-self
-            input_ids, input_mask, segment_ids, start_positions, end_positions = batch
-            loss = model(input_ids, segment_ids, input_mask, start_positions, end_positions)
-            if n_gpu > 1:
-                loss = loss.mean()  # mean() to average on multi-gpu.
-            if args.gradient_accumulation_steps > 1:
-                loss = loss / args.gradient_accumulation_steps
-            if args.fp16:
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
-
-            tr_loss += loss.item()
-            mean_loss = tr_loss * args.gradient_accumulation_steps / (step+1)
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                if args.fp16:
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
-                else:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                scheduler.step()
-                optimizer.step()
-                optimizer.zero_grad()
-                global_step += 1
-                iter_bar.set_description("Train Step(%d / %d) (Mean loss=%5.5f) (loss=%5.5f)" %
-                                         (global_step, num_train_step, mean_loss, loss.item()))
-
-        logger.info("** ** * Saving file * ** **")
-        model_checkpoint = "korquad_%d.bin" % (epoch)
-        logger.info(model_checkpoint)
-        output_model_file = os.path.join(args.output_dir,model_checkpoint)
-        if n_gpu > 1:
-            torch.save(model.module.state_dict(), output_model_file)
-        else:
-            torch.save(model.state_dict(), output_model_file)
-        epoch += 1
+    # Training
+    train_dataset = load_and_cache_examples(args, tokenizer)
+    train(args, train_dataset, model)
 
 
 if __name__ == "__main__":
