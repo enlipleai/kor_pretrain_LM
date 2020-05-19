@@ -14,9 +14,9 @@ Large Model의 경우 Fine-Tuning Step에서도 많은 Computational resource가
 Fine-Tuning Model도 공개합니다.
 * Fine-Tuning Model Download
   * V1
-    * [KorQuAD1.0](https://drive.google.com/file/d/1kanzo9DkHfxjXGtjq62C-ZKpsPrmoE3l/view?usp=sharing)
-    * [KorNLI]()
-    * [KorSTS](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
+    * [KorQuAD1.0 (EM:85.61/F1:93.89)](https://drive.google.com/file/d/1kanzo9DkHfxjXGtjq62C-ZKpsPrmoE3l/view?usp=sharing)
+    * KorNLI (In Progress)
+    * [KorSTS (acc: 83.9)](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
   * V2
     * In Progress
 
@@ -33,10 +33,12 @@ Fine-Tuning Model도 공개합니다.
 * Additional Task: SOP(Sentence Order
   Prediction)([ALBERT](https://arxiv.org/abs/1909.11942))
 * Optimizer:
-  * Small: Adam
+  * Small: Adam Optimizer
   * Large: [Lamb Optimizer](https://arxiv.org/abs/1904.00962)
 * Scheduler:
-  [PolyWarmup](https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/LanguageModeling/BERT/schedulers.py)
+  * Small: LinearWarmup
+  * Large:
+    [PolyWarmup](https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/LanguageModeling/BERT/schedulers.py)
 * Mixed-Precision Opt Level "O1"
   ([Nvidia Apex](https://nvidia.github.io/apex/amp.html))
 * Hyper-parameters
@@ -54,7 +56,7 @@ Fine-Tuning Model도 공개합니다.
 | Attention Dropout     | 0.1         | 0.1               |
 | Dropout               | 0.1         | 0.1               |
 | Batch Size            | 256         | 2048              |
-| Train Steps           | 50k         | 125k(V1) 250k(V2) |
+| Train Steps           | 500k        | 125k(V1) 250k(V2) |
 
 
 ## Model Benchmark
@@ -67,9 +69,9 @@ Fine-Tuning Model도 공개합니다.
 |       Ours (Small Size)       |    78.98/88.20     |              |       74.53       |
 |       Ours (Large Size)       |  **85.61/93.89**   |              |     **83.90**     |
 
-* **Fine-tuning Setting(Ours Model)**
+* **Fine-tuning Setting (Ours Model)**
   * Optimizer: Adam
-  * Scheduler: Linear Warmup
+  * Scheduler: LinearWarmup
   * Mixed Precision Opt Level "O2"
   * KorQuAD1.0
     * lr: 5e-5
