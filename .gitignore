@@ -129,9 +129,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-.gitignore 제거할 예정
-.idea/.gitignore 제거할 예정
-README.md 제거할 예정
-large_v1.zip 제거할 예정
-large_v1/ 제거할 예정
-src/ 제거할 예정
+
+
+large_v1.zip
+large_v1/
+
+
