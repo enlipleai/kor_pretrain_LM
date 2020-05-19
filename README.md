@@ -4,8 +4,8 @@
 NLP 발전을 위해 한글 Corpus로 Pre-train한 Language Model을 공개합니다.
 
 * Pre-Train Model Download
-  * [Small Download](https://drive.google.com/open?id=13D9Fnnl0ra1qjPgtSWdp1-xIs6DfJ7Zg)
-  * [Large-V1 Download](https://drive.google.com/file/d/1n0B3pK8DkkBvEpEXnjUX4a523LfPtumx/view?usp=sharing)
+  * [Small Download (18M Params)](https://drive.google.com/open?id=13D9Fnnl0ra1qjPgtSWdp1-xIs6DfJ7Zg)
+  * [Large-V1 Download (330M Params)](https://drive.google.com/file/d/1n0B3pK8DkkBvEpEXnjUX4a523LfPtumx/view?usp=sharing)
   * Large-V2 Download (In Progress)
 
 Large Model의 경우 Fine-Tuning Step에서도 많은 Computational resource가
