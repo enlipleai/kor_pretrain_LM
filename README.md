@@ -1,3 +1,5 @@
+<p align="center"><img src="./img/enai_logo.png"></p>
+
 # Pre-Trained Korean Language Model
 NLP 발전을 위해 한글 Corpus로 Pre-train한 Language Model을 공개합니다.
 
