@@ -173,18 +173,19 @@ def load_and_cache_examples(args, tokenizer):
 
 def main():
     parser = argparse.ArgumentParser()
-    # Required parameters
-
+    # Parameters
     parser.add_argument("--output_dir", default='output', type=str,
                         help="The output directory where the model checkpoints and predictions will be written.")
-    parser.add_argument("--checkpoint", default='pretrain_ckpt/large_v1_model.bin',
-                        type=str,
-                        help="checkpoint")
-    parser.add_argument("--model_config", default='data/large_config.json',
-                        type=str)
-    # Other parameters
-    parser.add_argument("--train_file", default='data/KorQuAD_v1.0_train.json', type=str,
+    parser.add_argument("--checkpoint", default='pretrain_ckpt/large_v1_model.bin', type=str,
+                        help="pre-trained model checkpoint")
+    parser.add_argument("--config_file", default='data/large_config.json', type=str,
+                        help="model configuration file")
+    parser.add_argument("--vocab_file", default='data/large_v1_32k_vocab.txt', type=str,
+                        help="tokenizer vocab file")
+
+    parser.add_argument("--train_file", default='data/korquad/KorQuAD_v1.0_train.json', type=str,
                         help="SQuAD json for training. E.g., train-v1.1.json")
+
     parser.add_argument("--max_seq_length", default=512, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences "
                              "longer than this will be truncated, and sequences shorter than this will be padded.")
@@ -193,8 +194,13 @@ def main():
     parser.add_argument("--max_query_length", default=64, type=int,
                         help="The maximum number of tokens for the question. Questions longer than this will "
                              "be truncated to this length.")
-    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Total batch size for training.")
-    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--max_answer_length", default=30, type=int,
+                        help="The maximum length of an answer that can be generated. This is needed because the start "
+                             "and end predictions are not conditioned on one another.")
+    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int,
+                        help="Total batch size for training.")
+    parser.add_argument("--learning_rate", default=5e-5, type=float,
+                        help="The initial learning rate for Adam.")
     parser.add_argument("--num_train_epochs", default=4.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
@@ -207,18 +213,13 @@ def main():
     parser.add_argument("--n_best_size", default=20, type=int,
                         help="The total number of n-best predictions to generate in the nbest_predictions.json "
                              "output file.")
-    parser.add_argument("--max_answer_length", default=30, type=int,
-                        help="The maximum length of an answer that can be generated. This is needed because the start "
-                             "and end predictions are not conditioned on one another.")
     parser.add_argument("--verbose_logging", action='store_true',
                         help="If true, all of the warnings related to data processing will be printed. "
                              "A number of warnings are expected for a normal SQuAD evaluation.")
-    parser.add_argument("--no_cuda",
-                        action='store_true',
+    parser.add_argument("--no_cuda", action='store_true',
                         help="Whether not to use CUDA when available")
-    parser.add_argument('--seed',
-                        type=int,
-                        default=42,
+
+    parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
     parser.add_argument('--fp16',
                         action='store_true',
@@ -228,8 +229,7 @@ def main():
                              "See details at https://nvidia.github.io/apex/amp.html")
     parser.add_argument("--local_rank", type=int, default=-1,
                         help="For distributed training: local_rank")
-    parser.add_argument('--null_score_diff_threshold',
-                        type=float, default=0.0,
+    parser.add_argument('--null_score_diff_threshold', type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.")
 
     args = parser.parse_args()
@@ -255,11 +255,11 @@ def main():
     # Set seed
     set_seed(args)
 
-    tokenizer = BertTokenizer('data/large_v1_32k_vocab.txt',
+    tokenizer = BertTokenizer(args.vocab_file,
                               max_len=args.max_seq_length,
                               do_basic_tokenize=True)
     # Prepare model
-    config = Config.from_json_file(args.model_config)
+    config = Config.from_json_file(args.config_file)
     model = QuestionAnswering(config)
     model.bert.load_state_dict(torch.load(args.checkpoint))
     num_params = count_parameters(model)

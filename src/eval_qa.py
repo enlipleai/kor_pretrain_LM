@@ -113,18 +113,18 @@ def load_and_cache_examples(args, tokenizer):
 
 def main():
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("--checkpoint", default='output/korquad_3.bin',
-                        type=str,
-                        help="checkpoint")
+    # Parameters
     parser.add_argument("--output_dir", default='debug', type=str,
                         help="The output directory where the model checkpoints and predictions will be written.")
+    parser.add_argument("--checkpoint", default='output/korquad_3.bin', type=str,
+                        help="fine-tuned model checkpoint")
+    parser.add_argument("--config_file", default='data/large_config.json', type=str,
+                        help="model configuration file")
+    parser.add_argument("--vocab_file", default='data/large_v1_32k_vocab.txt', type=str,
+                        help="tokenizer vocab file")
 
-    ## Other parameters
-    parser.add_argument("--predict_file", default='data/KorQuAD_v1.0_dev.json', type=str,
+    parser.add_argument("--predict_file", default='data/korquad/KorQuAD_v1.0_dev.json', type=str,
                         help="SQuAD json for predictions. E.g., dev-v1.1.json or test-v1.1.json")
-    parser.add_argument("--config_name", default="data/large_config.json", type=str,
-                        help="Pretrained config name or path if not the same as model_name")
 
     parser.add_argument("--max_seq_length", default=512, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences "
@@ -134,22 +134,22 @@ def main():
     parser.add_argument("--max_query_length", default=64, type=int,
                         help="The maximum number of tokens for the question. Questions longer than this will "
                              "be truncated to this length.")
-    parser.add_argument("--do_lower_case", action='store_true',
-                        help="Set this flag if you are using an uncased model.")
+    parser.add_argument("--max_answer_length", default=30, type=int,
+                        help="The maximum length of an answer that can be generated. This is needed because the start "
+                             "and end predictions are not conditioned on one another.")
 
     parser.add_argument("--batch_size", default=16, type=int,
                         help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument("--n_best_size", default=20, type=int,
-                        help="The total number of n-best predictions to generate in the nbest_predictions.json output file.")
-    parser.add_argument("--max_answer_length", default=30, type=int,
-                        help="The maximum length of an answer that can be generated. This is needed because the start "
-                             "and end predictions are not conditioned on one another.")
+                        help="The total number of n-best predictions to generate in the nbest_predictions."
+                             "json output file.")
     parser.add_argument("--verbose_logging", action='store_true',
                         help="If true, all of the warnings related to data processing will be printed. "
                              "A number of warnings are expected for a normal SQuAD evaluation.")
 
     parser.add_argument("--no_cuda", action='store_true',
                         help="Whether not to use CUDA when available")
+
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
     parser.add_argument('--fp16', action='store_true',
@@ -170,8 +170,8 @@ def main():
     # Set seed
     set_seed(args)
 
-    tokenizer = BertTokenizer(vocab_file='data/large_v1_32k_vocab.txt', do_basic_tokenize=True, max_len=args.max_seq_length)
-    config = Config.from_json_file(args.config_name)
+    tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_basic_tokenize=True, max_len=args.max_seq_length)
+    config = Config.from_json_file(args.config_file)
     model = QuestionAnswering(config)
     model.load_state_dict(torch.load(args.checkpoint))
     num_params = count_parameters(model)
