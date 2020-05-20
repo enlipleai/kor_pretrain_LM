@@ -15,7 +15,7 @@ Fine-Tuning Model도 공개합니다.
 * Fine-Tuning Model Download
   * V1
     * [KorQuAD1.0 (EM:85.61/F1:93.89)](https://drive.google.com/file/d/1kanzo9DkHfxjXGtjq62C-ZKpsPrmoE3l/view?usp=sharing)
-    * KorNLI (In Progress)
+    * KorNLI [(spearman: 81.68)](https://drive.google.com/file/d/18QP4lpoqM46PLTBHJxGdzzVSqrLT9inC/view?usp=sharing)
     * [KorSTS (acc: 83.9)](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
   * V2
     * In Progress
@@ -67,7 +67,7 @@ Fine-Tuning Model도 공개합니다.
 |      KoBERT (Base Size)       |    52.81/80.27     |    79.00     |       79.64       |
 |     KoELECTRA (Base Size)     |    61.10/89.59     |    80.85     |       83.21       |
 |       Ours (Small Size)       |    78.98/88.20     |              |       74.53       |
-|       Ours (Large Size)       |  **85.61/93.89**   |              |     **83.90**     |
+|       Ours (Large Size)       |  **85.61/93.89**   |  **81.68**   |     **83.90**     |
 
 * **Fine-tuning Setting (Ours Model)**
   * Optimizer: Adam
@@ -78,7 +78,7 @@ Fine-Tuning Model도 공개합니다.
     * epochs: 4
     * batch size: 16
   * KorNLI
-    * lr: 3e-5
+    * lr: 2e-5
     * epochs: 3
     * batch size: 32
   * KorSTS
