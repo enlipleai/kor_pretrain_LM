@@ -15,7 +15,7 @@ Fine-Tuning Model도 공개합니다.
 * Fine-Tuning Model Download
   * V1
     * [KorQuAD1.0 (EM:85.61/F1:93.89)](https://drive.google.com/file/d/1kanzo9DkHfxjXGtjq62C-ZKpsPrmoE3l/view?usp=sharing)
-    * KorNLI [(spearman: 81.68)](https://drive.google.com/file/d/18QP4lpoqM46PLTBHJxGdzzVSqrLT9inC/view?usp=sharing)
+    * [KorNLI (spearman: 81.68)](https://drive.google.com/file/d/18QP4lpoqM46PLTBHJxGdzzVSqrLT9inC/view?usp=sharing)
     * [KorSTS (acc: 83.9)](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
   * V2
     * In Progress
