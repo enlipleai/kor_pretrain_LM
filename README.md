@@ -92,7 +92,7 @@ Fine-Tuning Model도 공개합니다.
     * batch size: 16(Large) 32(Small)
     * best random seed: 9(Large) 7(Small)
 
-## Example Scripts (In Progress)
+## Example Scripts
 **KorQuAD1.0**
 * Train
 ```shell
