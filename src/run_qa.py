@@ -10,7 +10,6 @@ import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
-from apex.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm, trange
 
 from models.modeling_bert import QuestionAnswering, Config
@@ -71,6 +70,10 @@ def train(args, train_dataset, model):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.local_rank != -1:
+        try:
+            from apex.parallel import DistributedDataParallel as DDP
+        except ImportError:
+            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
         model = DDP(model, message_size=250000000, gradient_predivide_factor=torch.distributed.get_world_size())
 
     # Train!
