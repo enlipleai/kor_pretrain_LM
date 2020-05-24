@@ -183,6 +183,9 @@ python3 eval_classifier.py \
   --eval_batch_size 32
 ```
 
+## Acknowledgement
+본 연구는 과학기술정보통신부 및 정보통신산업진흥원의 ‘고성능 컴퓨팅 지원’ 사업으로부터 지원받아 수행하였음
+Following(or This research) was results of a study on the "HPC Support" Project, supported by the ‘Ministry of Science and ICT’ and NIPA.
 
 ## Reference
 * [Google BERT](https://github.com/google-research/bert)
