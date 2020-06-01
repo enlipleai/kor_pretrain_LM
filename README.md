@@ -63,10 +63,10 @@ Fine-Tuning Model도 공개합니다.
 
 |                               | KorQuAD1.0 (EM/F1) | KorNLI (acc) | KorSTS (spearman) |
 |:-----------------------------:|:------------------:|:------------:|:-----------------:|
-| multilingual-BERT (Base Size) |    70.42/90.25     |      -       |         -         |
-|      HanBERT (Base Size)      |    78.74 / 92.02   |    80.89     |       83.33       |
+| multilingual-BERT (Base Size) |    70.42/90.25     |    76.33     |       77.90       |
 |      KoBERT (Base Size)       |    52.81/80.27     |    79.00     |       79.64       |
 |     KoELECTRA (Base Size)     |    61.10/89.59     |    80.85     |       83.21       |
+|      HanBERT (Base Size)      |    78.74 / 92.02   |    80.89     |       83.33       |
 |       Ours (Small Size)       |    78.98/88.20     |    74.67     |       74.53       |
 |       Ours (Large Size)       |  **85.61/93.89**   |  **81.68**   |     **83.90**     |
 
@@ -183,6 +183,9 @@ python3 eval_classifier.py \
   --eval_batch_size 32
 ```
 
+## Acknowledgement
+본 연구는 과학기술정보통신부 및 정보통신산업진흥원의 ‘고성능 컴퓨팅 지원’ 사업으로부터 지원받아 수행하였음  
+Following(or This research) was results of a study on the "HPC Support" Project, supported by the ‘Ministry of Science and ICT’ and NIPA.
 
 ## Reference
 * [Google BERT](https://github.com/google-research/bert)
