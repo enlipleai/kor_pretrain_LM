@@ -99,36 +99,6 @@ class PositionWiseFeedForward(nn.Module):
         ff_out = self.dropout(self.fc2(self.act_fn(intermediate)))
         return ff_out
 
-# try:
-#     import apex
-#     #apex.amp.register_half_function(apex.normalization.fused_layer_norm, 'FusedLayerNorm')
-#     import apex.normalization
-#     #apex.amp.register_float_function(apex.normalization.FusedLayerNorm, 'forward')
-#     LayerNorm = apex.normalization.FusedLayerNorm
-# except ImportError:
-#     print("import basic LayerNorm version"
-#           "Better speed can be achieved with apex installed from https://www.github.com/nvidia/apex.")
-#     class LayerNorm(nn.Module):
-#         def __init__(self, hidden_size, eps=1e-12):
-#             """Construct a layernorm module in the TF style (epsilon inside the square root).
-#             """
-#             super(LayerNorm, self).__init__()
-#             self.weight = nn.Parameter(torch.ones(hidden_size))
-#             self.bias = nn.Parameter(torch.zeros(hidden_size))
-#             self.variance_epsilon = eps
-#
-#             self.init_weights()
-#
-#         def init_weights(self):
-#             self.weight.data.fill_(1.0)
-#             self.bias.data.zero_()
-#
-#         def forward(self, x):
-#             u = x.mean(-1, keepdim=True)
-#             s = (x - u).pow(2).mean(-1, keepdim=True)
-#             x = (x - u) / torch.sqrt(s + self.variance_epsilon)
-#             return self.weight * x + self.bias
-
 
 class Block(nn.Module):
     def __init__(self, config):
@@ -297,7 +267,7 @@ class LMPredictionHead(nn.Module):
         return hidden_states
 
 
-class PreTrainingHeads(nn.Module):  #
+class PreTrainingHeads(nn.Module):
     def __init__(self, config, embedding_weights):
         super(PreTrainingHeads, self).__init__()
         self.predictions = LMPredictionHead(config, embedding_weights)
@@ -306,7 +276,6 @@ class PreTrainingHeads(nn.Module):  #
     def forward(self, sequence_output, pooled_output):
         prediction_scores = self.predictions(sequence_output)
         seq_relationship_score = self.seq_relationship(pooled_output)
-
         return prediction_scores, seq_relationship_score
 
 
@@ -348,6 +317,27 @@ class Model(nn.Module):
         sequence_output = encoded_layers[-1]
         pooled_output = self.pooler(sequence_output)
         return sequence_output, pooled_output
+
+
+class PreTraining(nn.Module):
+    def __init__(self, config):
+        super(PreTraining, self).__init__()
+        self.bert = Model(config)
+        self.cls = PreTrainingHeads(config, self.bert.embeddings.word_embeddings.weight)
+        self.vocab_size = config.vocab_size
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None,
+                next_sentence_label=None):
+        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask)
+        prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
+
+        if masked_lm_labels is not None:
+            loss_fct = CrossEntropyLoss(ignore_index=-1)
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.vocab_size), masked_lm_labels.view(-1))
+            sop_loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_label.view(-1))
+            return masked_lm_loss, sop_loss
+        else:
+            return prediction_scores, seq_relationship_score
 
 
 class SequenceClassification(nn.Module):
