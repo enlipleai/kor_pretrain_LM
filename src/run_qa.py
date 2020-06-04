@@ -206,6 +206,8 @@ def main():
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float,
                         help="The initial learning rate for Adam.")
+    parser.add_argument("--weight_decay", default=0.01, type=float,
+                        help="Weight deay if we apply some.")
     parser.add_argument("--num_train_epochs", default=4.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
