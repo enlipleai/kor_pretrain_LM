@@ -39,7 +39,7 @@ def count_parameters(model):
 
 def train(args, train_dataset, model):
     """ Train the model """
-    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
+    args.train_batch_size = args.per_gpu_train_batch_size // args.gradient_accumulation_steps
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
@@ -202,8 +202,12 @@ def main():
                              "and end predictions are not conditioned on one another.")
     parser.add_argument("--per_gpu_train_batch_size", default=16, type=int,
                         help="Total batch size for training.")
+     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
+                        help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float,
                         help="The initial learning rate for Adam.")
+    parser.add_argument("--weight_decay", default=0.01, type=float,
+                        help="Weight deay if we apply some.")
     parser.add_argument("--num_train_epochs", default=4.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
