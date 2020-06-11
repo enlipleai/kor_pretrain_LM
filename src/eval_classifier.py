@@ -165,11 +165,10 @@ def main():
 
     model.eval()
     preds = []
-    for input_ids, input_mask, segment_ids, label_ids in tqdm(test_dataloader, desc="Evaluating"):
+    for input_ids, input_mask, segment_ids in tqdm(test_dataloader, desc="Evaluating"):
         input_ids = input_ids.to(device)
         input_mask = input_mask.to(device)
         segment_ids = segment_ids.to(device)
-        label_ids = label_ids.to(device)
 
         with torch.no_grad():
             logits = model(input_ids, segment_ids, input_mask, labels=None)
