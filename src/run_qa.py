@@ -185,7 +185,6 @@ def main():
                         help="model configuration file")
     parser.add_argument("--vocab_file", default='data/large_v1_32k_vocab.txt', type=str,
                         help="tokenizer vocab file")
-
     parser.add_argument("--train_file", default='data/korquad/KorQuAD_v1.0_train.json', type=str,
                         help="SQuAD json for training. E.g., train-v1.1.json")
 
@@ -228,8 +227,7 @@ def main():
 
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
-    parser.add_argument('--fp16',
-                        action='store_true',
+    parser.add_argument('--fp16', action='store_true',
                         help="Whether to use 16-bit float precision instead of 32-bit")
     parser.add_argument('--fp16_opt_level', type=str, default='O2',
                         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
