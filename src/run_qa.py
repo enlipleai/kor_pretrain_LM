@@ -43,16 +43,18 @@ def train(args, train_dataset, model):
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
-    t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+    t_total = len(train_dataloader) * args.num_train_epochs
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+         'weight_decay': args.weight_decay},
+        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+         'weight_decay': 0.0}
     ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=t_total*0.1, t_total=t_total)
+    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=t_total*args.warmup_proportion, t_total=t_total)
     if args.fp16:
         try:
             from apex import amp
@@ -62,7 +64,9 @@ def train(args, train_dataset, model):
             keep_batchnorm_fp32 = False
         else:
             keep_batchnorm_fp32 = True
-        model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level, keep_batchnorm_fp32=keep_batchnorm_fp32)
+        model, optimizer = amp.initialize(
+            model, optimizer, opt_level=args.fp16_opt_level, keep_batchnorm_fp32=keep_batchnorm_fp32
+        )
 
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
@@ -73,7 +77,9 @@ def train(args, train_dataset, model):
         try:
             from apex.parallel import DistributedDataParallel as DDP
         except ImportError:
-            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+            raise ImportError(
+                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training."
+            )
         model = DDP(model, message_size=250000000, gradient_predivide_factor=torch.distributed.get_world_size())
 
     # Train!
@@ -82,7 +88,9 @@ def train(args, train_dataset, model):
     logger.info("  Num Epochs = %d", args.num_train_epochs)
     logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
     logger.info("  Total train batch size (w. parallel, distributed & accumulation) = %d",
-                args.train_batch_size * args.gradient_accumulation_steps * (torch.distributed.get_world_size() if args.local_rank != -1 else 1))
+                args.train_batch_size *
+                args.gradient_accumulation_steps *
+                (torch.distributed.get_world_size() if args.local_rank != -1 else 1))
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
 
@@ -93,7 +101,9 @@ def train(args, train_dataset, model):
     train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0])
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
     for _ in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Train(XX Epoch) Step(X/X) (loss=X.X)", disable=args.local_rank not in [-1, 0])
+        epoch_iterator = tqdm(
+            train_dataloader, desc="Train(XX Epoch) Step(X/X) (loss=X.X)", disable=args.local_rank not in [-1, 0]
+        )
         for step, batch in enumerate(epoch_iterator):
             batch = tuple(t.to(args.device) for t in batch)  # multi-gpu does scattering it-self
             input_ids, input_mask, segment_ids, start_positions, end_positions = batch
@@ -101,7 +111,7 @@ def train(args, train_dataset, model):
             loss = outputs  # model outputs are always tuple in transformers (see doc)
 
             if args.n_gpu > 1:
-                loss = loss.mean() # mean() to average on multi-gpu parallel (not distributed) training
+                loss = loss.mean()  # mean() to average on multi-gpu parallel (not distributed) training
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
@@ -122,17 +132,18 @@ def train(args, train_dataset, model):
                 optimizer.zero_grad()
                 global_step += 1
                 epoch_iterator.set_description(
-                    "Train(%d Epoch) Step(%d / %d) (loss=%5.5f)" % (_, global_step, t_total, loss.item()))
+                    "Train(%d Epoch) Step(%d / %d) (loss=%5.5f)" % (_, global_step, t_total, loss.item())
+                )
 
         if args.local_rank in [-1, 0]:
-            model_checkpoint = 'korquad_{0}_{1}_{2}_{3}.bin'.format(args.learning_rate,
+            model_checkpoint = "korquad_{0}_{1}_{2}_{3}.bin".format(args.learning_rate,
                                                                     args.train_batch_size,
                                                                     epochs,
                                                                     int(args.num_train_epochs))
             logger.info(model_checkpoint)
             output_model_file = os.path.join(args.output_dir, model_checkpoint)
             if args.n_gpu > 1 or args.local_rank != -1:
-                logger.info("** ** * Saving file * ** **(module)")
+                logger.info("** ** * Saving file * ** ** (module)")
                 torch.save(model.module.state_dict(), output_model_file)
             else:
                 logger.info("** ** * Saving file * ** **")
@@ -201,7 +212,7 @@ def main():
                              "and end predictions are not conditioned on one another.")
     parser.add_argument("--per_gpu_train_batch_size", default=16, type=int,
                         help="Total batch size for training.")
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
+    parser.add_argument('--gradient_accumulation_steps', default=1, type=int,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float,
                         help="The initial learning rate for Adam.")
@@ -225,14 +236,14 @@ def main():
     parser.add_argument("--no_cuda", action='store_true',
                         help="Whether not to use CUDA when available")
 
-    parser.add_argument('--seed', type=int, default=42,
+    parser.add_argument('--seed', default=42, type=int,
                         help="random seed for initialization")
     parser.add_argument('--fp16', action='store_true',
                         help="Whether to use 16-bit float precision instead of 32-bit")
-    parser.add_argument('--fp16_opt_level', type=str, default='O2',
+    parser.add_argument('--fp16_opt_level', default='O2', type=str,
                         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
                              "See details at https://nvidia.github.io/apex/amp.html")
-    parser.add_argument("--local_rank", type=int, default=-1,
+    parser.add_argument("--local_rank", default=-1, type=int,
                         help="For distributed training: local_rank")
     parser.add_argument('--null_score_diff_threshold', type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.")
@@ -251,18 +262,17 @@ def main():
     args.device = device
 
     # Setup logging
-    logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                        datefmt = '%m/%d/%Y %H:%M:%S',
-                        level = logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S',
+                        level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
     logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
                    args.local_rank, device, args.n_gpu, bool(args.local_rank != -1), args.fp16)
 
     # Set seed
     set_seed(args)
 
-    tokenizer = BertTokenizer(args.vocab_file,
-                              max_len=args.max_seq_length,
-                              do_basic_tokenize=True)
+    tokenizer = BertTokenizer(args.vocab_file, max_len=args.max_seq_length, do_basic_tokenize=True)
+
     # Prepare model
     config = Config.from_json_file(args.config_file)
     model = QuestionAnswering(config)
