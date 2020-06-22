@@ -88,9 +88,9 @@ def train(args, train_dataset, model):
     logger.info("  Num Epochs = %d", args.num_train_epochs)
     logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
     logger.info("  Total train batch size (w. parallel, distributed & accumulation) = %d",
-                args.train_batch_size *
-                args.gradient_accumulation_steps *
-                (torch.distributed.get_world_size() if args.local_rank != -1 else 1))
+                args.train_batch_size
+                * args.gradient_accumulation_steps
+                * (torch.distributed.get_world_size() if args.local_rank != -1 else 1))
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
 
