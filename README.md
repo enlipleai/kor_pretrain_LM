@@ -8,7 +8,9 @@ NLP 발전을 위해 한글 Corpus로 Pre-train한 Language Model을 공개합�
     * [Small with LMHead](https://drive.google.com/file/d/1QXwQ8dg4p7Xhr2GLN4joREYNgfL86trP/view?usp=sharing)
   * [Large-V1 Download (330M Params)](https://drive.google.com/file/d/1n0B3pK8DkkBvEpEXnjUX4a523LfPtumx/view?usp=sharing)
     * [Large-V1 with LMHead](https://drive.google.com/file/d/1uPZ0LeXsxMmzfDNiZIJxBOc1XDEpV1nr/view?usp=sharing)
-  * Large-V2 Download (In Progress)
+  * Large-V2 Download (https://drive.google.com/file/d/1iS657qkFhYcwP28VOGLp6tYDO1JBUQnE/view?usp=sharing)
+    * [Large-V2 with LMHead] (https://drive.google.com/file/d/1lUS4oP1Kw1iCnkRuFJOolFX5czCyg4cd/view?usp=sharing)
+**V2 모델의 max_seq_length는 384입니다. V2 모델 사용 시 config의 max_position_embeddings를 384로 변경하여 사용부탁드립니다.**
 
 Large Model의 경우 Fine-Tuning Step에서도 많은 Computational resource가
 필요하기 때문에 고사양 Machine이 없을 시 Fine-Tuning이 어렵습니다. 이에
@@ -17,10 +19,12 @@ Fine-Tuning Model도 공개합니다.
 * Fine-Tuning Model Download
   * V1
     * [KorQuAD1.0 (EM:85.61/F1:93.89)](https://drive.google.com/file/d/1kanzo9DkHfxjXGtjq62C-ZKpsPrmoE3l/view?usp=sharing)
-    * [KorNLI (spearman: 81.68)](https://drive.google.com/file/d/18QP4lpoqM46PLTBHJxGdzzVSqrLT9inC/view?usp=sharing)
-    * [KorSTS (acc: 83.9)](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
+    * [KorNLI (acc: 81.68)](https://drive.google.com/file/d/18QP4lpoqM46PLTBHJxGdzzVSqrLT9inC/view?usp=sharing)
+    * [KorSTS (spearman: 83.9)](https://drive.google.com/file/d/1nVsSXnRrr6xJjkECe9tkUptt8ynnkiAz/view?usp=sharing)
   * V2
-    * In Progress
+    * [KorQuAD1.0 (EM:65.17 F1:91.77)](https://drive.google.com/file/d/1bdC-KluGeB1SxJcSZ7ie5oIlJIvtzHbf/view?usp=sharing)
+    * [KorNLI (acc: 83.21)](https://drive.google.com/file/d/1R69psC-sByY7w6sllom7WBCM6u2EC5lh/view?usp=sharing)
+    * [KorSTS (spearman: 84.75)](https://drive.google.com/file/d/1HDfZHp0bfPDkBrT84AquF-7n9IePxOpS/view?usp=sharing)
 
 ## Pre-train Corpus
 * Small: 한국어 Wikipedia
@@ -68,17 +72,20 @@ Fine-Tuning Model도 공개합니다.
 | multilingual-BERT (Base Size) |    70.42/90.25     |    76.33     |       77.90       |
 |      KoBERT (Base Size)       |    52.81/80.27     |    79.00     |       79.64       |
 |     KoELECTRA (Base Size)     |    61.10/89.59     |    80.85     |       83.21       |
-|      HanBERT (Base Size)      |    78.74 / 92.02   |    80.89     |       83.33       |
+|      HanBERT (Base Size)      |    78.74/92.02     |    80.89     |       83.33       |
 |       Ours (Small Size)       |    78.98/88.20     |    74.67     |       74.53       |
-|       Ours (Large Size)       |  **85.61/93.89**   |  **81.68**   |     **83.90**     |
+|       Ours (Large Size)       |  **85.61/93.89**   |    81.68     |       83.90       |
+|       Ours-V2 (Large Size) 125k steps       |   65.15/91.82   |    82.14     |       84.27       |
+|       Ours-V2 (Large Size) 250k steps   |    65.17/91.77     |  **83.21**   |     **84.75**     |
+**V2 모델은 형태소분석기를 사용하지 않았기때문에 KorQuAD Task에서 EM이 낮습니다. Fine-tuning step의 pre-processing 또는 post-processing에 형태소분석기를 추가하여 이를 개선할 수 있습니다. KorNLI, KorSTS Task에서는 V2 모델의 성능이 향상된것을 확인할 수 있습니다.**
 
 * **Fine-tuning Setting (Ours Model)**
   * Optimizer: Adam
   * Scheduler: LinearWarmup
   * Mixed Precision Opt Level "O2"
   * KorQuAD1.0
-    * lr: 5e-5
-    * epochs: 4
+    * lr: 5e-5(V1) 3e-5(V2)
+    * epochs: 4(V1) 2(V2)
     * batch size: 16
   * KorNLI
     * lr: 2e-5
@@ -91,8 +98,8 @@ Fine-Tuning Model도 공개합니다.
       ([Reference](https://arxiv.org/abs/2002.06305))
     * lr: 3e-5
     * epochs: 10
-    * batch size: 16(Large) 32(Small)
-    * best random seed: 9(Large) 7(Small)
+    * batch size: 16(V1) 32(V2, Small)
+    * best random seed: 9(V1) 3(V2) 7(Small)
 
 ## Example Scripts
 **KorQuAD1.0**
