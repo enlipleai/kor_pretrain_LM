@@ -8,8 +8,8 @@ NLP 발전을 위해 한글 Corpus로 Pre-train한 Language Model을 공개합�
     * [Small with LMHead](https://drive.google.com/file/d/1QXwQ8dg4p7Xhr2GLN4joREYNgfL86trP/view?usp=sharing)
   * [Large-V1 Download (330M Params)](https://drive.google.com/file/d/1n0B3pK8DkkBvEpEXnjUX4a523LfPtumx/view?usp=sharing)
     * [Large-V1 with LMHead](https://drive.google.com/file/d/1uPZ0LeXsxMmzfDNiZIJxBOc1XDEpV1nr/view?usp=sharing)
-  * []Large-V2 Download] (https://drive.google.com/file/d/1iS657qkFhYcwP28VOGLp6tYDO1JBUQnE/view?usp=sharing)
-    * [Large-V2 with LMHead] (https://drive.google.com/file/d/1lUS4oP1Kw1iCnkRuFJOolFX5czCyg4cd/view?usp=sharing)
+  * [Large-V2 Download](https://drive.google.com/file/d/1iS657qkFhYcwP28VOGLp6tYDO1JBUQnE/view?usp=sharing)
+    * [Large-V2 with LMHead](https://drive.google.com/file/d/1lUS4oP1Kw1iCnkRuFJOolFX5czCyg4cd/view?usp=sharing)
 
 
 **V2 모델의 max_seq_length는 384입니다. V2 모델 사용 시 config의 max_position_embeddings를 384로 변경하여 사용부탁드립니다.**
