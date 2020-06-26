@@ -79,7 +79,8 @@ Fine-Tuning Model도 공개합니다.
 | Ours-V2 (Large Size) 250k steps |  65.17/91.77     |  **83.21**   |     **84.75**     |
 
 
-**V2 모델은 형태소분석기를 사용하지 않았기때문에 KorQuAD Task에서 EM이 낮습니다. Fine-tuning step의 pre-processing 또는 post-processing에 형태소분석기를 추가하여 이를 개선할 수 있습니다. KorNLI, KorSTS Task에서는 V2 모델의 성능이 향상된것을 확인할 수 있습니다.**
+**V2 모델은 형태소분석기를 사용하지 않았기때문에 KorQuAD Task에서 EM이 낮습니다.**
+**Fine-tuning step의 pre-processing 또는 post-processing에 형태소분석기를 추가하여 이를 개선할 수 있습니다. KorNLI, KorSTS Task에서는 V2 모델의 성능이 향상된것을 확인할 수 있습니다.**
 
 * **Fine-tuning Setting (Ours Model)**
   * Optimizer: Adam
